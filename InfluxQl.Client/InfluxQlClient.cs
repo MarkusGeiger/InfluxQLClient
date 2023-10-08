@@ -68,6 +68,8 @@ public class InfluxQlClient
     try
     {
       response = await client.GetAsync(path);
+      Console.WriteLine($"HTTP GET: status: [{response.StatusCode}], path: '{path}'");
+      
       if(response.IsSuccessStatusCode)
       {
         return await response.Content.ReadAsStringAsync();
