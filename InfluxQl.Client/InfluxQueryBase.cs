@@ -16,9 +16,13 @@ public abstract class InfluxQueryBase
     if (query.ToUpperInvariant().StartsWith("SELECT") || query.ToUpperInvariant().StartsWith("SHOW"))
     {
       var queryParameter = $"q={query}";
-      var dbParameter = string.IsNullOrWhiteSpace(database) ? string.Empty : $"db={database}";
-      var parameters = new string[]{dbParameter, queryParameter};
-      var response = await client.Get($"/query?{string.Join("&", parameters)}");
+      var parameters = new List<string>();
+      if (!string.IsNullOrWhiteSpace(database))
+      {
+        parameters.Add($"db={database}");
+      }
+      parameters.Add(queryParameter);
+      var response = await client.Get($"query?{string.Join("&", parameters)}");
       //Console.WriteLine($"QUERY raw result: {response}, query request: '{query}'");
       return response ?? throw new NullReferenceException("Query response was null.");
     }
@@ -31,9 +35,15 @@ public abstract class InfluxQueryBase
   protected virtual async Task<InfluxResponse> QueryFromInflux(string query, string database = "")
   {
     var responseText = await QueryStringFromInflux(query, database);
-
+    Console.WriteLine(responseText);
     var response = JsonSerializer.Deserialize<InfluxResponse>(responseText);
 
     return response ?? throw new NullReferenceException("Could not parse response to json.");
+  }
+
+  protected virtual async Task<List<InfluxSeries>> QueryAsTableFromInflux(string query, string database = "")
+  {
+    var result = await QueryFromInflux(query, database);
+    return result.GetAsTable();
   }
 }

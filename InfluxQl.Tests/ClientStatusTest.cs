@@ -17,9 +17,12 @@ public class ClientStatusTest
   [TestMethod]
   public async Task CheckStatusFailed()
   {
-    var client = InfluxQlClient.GetClient("127.0.0.1");
-    Assert.IsNotNull(client);
-    var pingResult = await client.Status.Ping();
-    Assert.IsFalse(pingResult);
+    await Assert.ThrowsExceptionAsync<HttpRequestException>(async () =>
+    {
+      var client = InfluxQlClient.GetClient("127.0.0.1");
+      Assert.IsNotNull(client);
+      var pingResult = await client.Status.Ping();
+      Assert.IsFalse(pingResult);
+    }, "this should not work. Are you sure there is no local influx?");
   }
 }

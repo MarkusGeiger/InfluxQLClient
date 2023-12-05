@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InfluxQl.Client", "InfluxQl
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "InfluxQl.Console", "InfluxQl.Console\InfluxQl.Console.csproj", "{F448E9CF-BE86-4289-B576-7CA6E203AF04}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "InfluxQl.GrafanaProxy", "InfluxQl.GrafanaProxy\InfluxQl.GrafanaProxy.csproj", "{3BEAE5A2-D2F5-422F-AB74-AEC4A677DD6F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{F448E9CF-BE86-4289-B576-7CA6E203AF04}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F448E9CF-BE86-4289-B576-7CA6E203AF04}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F448E9CF-BE86-4289-B576-7CA6E203AF04}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3BEAE5A2-D2F5-422F-AB74-AEC4A677DD6F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3BEAE5A2-D2F5-422F-AB74-AEC4A677DD6F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3BEAE5A2-D2F5-422F-AB74-AEC4A677DD6F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3BEAE5A2-D2F5-422F-AB74-AEC4A677DD6F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

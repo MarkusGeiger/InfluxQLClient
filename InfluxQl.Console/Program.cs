@@ -32,8 +32,31 @@ foreach (var database in databases)
   Console.WriteLine($"SHOW TAG KEYS on database: '{database}', result:\n[{string.Join(", ", allTagKeys)}]");
   foreach (var tagKey in allTagKeys)
   {
-    var tagValues = await client.Metadata.ShowTagValues(database, tagKey);
-    Console.WriteLine($"\tSHOW TAG VALUES for key={tagKey} on database: '{database}', result:\n\t[{string.Join(", ", tagValues)}]");
+    //var tagValues = await client.Metadata.ShowTagValues(database, tagKey);
+    //Console.WriteLine($"\tSHOW TAG VALUES for key={tagKey} on database: '{database}', result:\n\t[{string.Join(", ", tagValues)}]");
+    var resultTables = await client.Metadata.ShowTagValuesAsTables(database, tagKey);
+    foreach(var result in resultTables)
+    {
+      Helpers.PrintTable(result.Name, result.Columns, result.Table);
+    }
+  }
+
+  var seriesResult = await client.Metadata.ShowSeriesAsTables(database, measurements.First());
+  foreach(var series in seriesResult)
+  {
+    Helpers.PrintTable(series.Name, series.Columns, series.Table);
+  }
+
+  var measurementResult = await client.Metadata.ShowMeasurementsAsTables(database);
+  foreach(var measurementSeries in measurementResult)
+  {
+    Helpers.PrintTable(measurementSeries.Name, measurementSeries.Columns, measurementSeries.Table);
+  }
+
+  var lastValueResults = await client.Values.SelectLastValue(database, measurements.First());
+  foreach(var lastValue in lastValueResults)
+  {
+    Helpers.PrintTable(lastValue.Name, lastValue.Columns, lastValue.Table);
   }
 
   Console.WriteLine("#######################");

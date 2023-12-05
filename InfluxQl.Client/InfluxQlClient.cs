@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics.Contracts;
+using System.Text;
 
 namespace InfluxQl.Client;
 
@@ -25,6 +26,14 @@ public class InfluxQlClient
 
     this.Status = new InfluxStatus(this);
     this.Metadata = new InfluxQueryMetadata(this);
+    this.Values = new InfluxQueryValues(this);
+  }
+
+  public void AddGrafanaAuth(string basicAuth)
+  {
+    var byteArray = Encoding.ASCII.GetBytes(basicAuth);
+    var base64Value = Convert.ToBase64String(byteArray);
+    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", base64Value);
   }
 
   public static InfluxQlClient GetClient(Uri uri)
@@ -55,6 +64,7 @@ public class InfluxQlClient
 
   public static InfluxQlClient GetClient(string schema, string host, int port, string path)
   {
+    if (!path.EndsWith('/')) path += "/";
     return GetClient(new UriBuilder(schema, host, port, path).Uri);
   }
 
@@ -62,22 +72,25 @@ public class InfluxQlClient
 
   public InfluxQueryMetadata Metadata { get; }
 
+  public InfluxQueryValues Values { get; }
+
   internal async Task<string?> Get(string path)
   {
     HttpResponseMessage response = new HttpResponseMessage(System.Net.HttpStatusCode.NotImplemented);
     try
     {
+      if(client.BaseAddress != null && client.BaseAddress.ToString().EndsWith('/')) path = path.TrimStart('/');
       response = await client.GetAsync(path);
-      Console.WriteLine($"HTTP GET: status: [{response.StatusCode}], path: '{path}'");
-      
-      if(response.IsSuccessStatusCode)
+      Console.WriteLine($"HTTP GET: status: [{response.StatusCode}], url: '{client.BaseAddress}', path: '{path}'");
+
+      if (response.IsSuccessStatusCode)
       {
         return await response.Content.ReadAsStringAsync();
       }
       else
       {
         Console.WriteLine(response);
-      } 
+      }
     }
     catch (System.Exception exc)
     {
@@ -86,6 +99,4 @@ public class InfluxQlClient
     }
     return null;
   }
-
-
 }

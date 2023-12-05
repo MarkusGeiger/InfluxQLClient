@@ -1,4 +1,6 @@
-﻿using System.Text.Json.Serialization;
+﻿using System.Data;
+using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 
 namespace InfluxQl.Client;
 
@@ -26,6 +28,11 @@ public class InfluxResponse
 {
   [JsonPropertyName("results")]
   public List<InfluxResult> InfluxResults { get; set; } = new List<InfluxResult>();
+
+  public List<InfluxSeries> GetAsTable()
+  {
+    return InfluxResults.First().Series.ToList();
+  }
 }
 
 public class InfluxResult
@@ -46,5 +53,5 @@ public class InfluxSeries
   public List<string> Columns { get; set; } = new List<string>();
 
   [JsonPropertyName("values")]
-  public List<List<string>> Values { get; set; } = new List<List<string>>();
+  public List<List<object>> Table { get; set; } = new List<List<object>>();
 }
