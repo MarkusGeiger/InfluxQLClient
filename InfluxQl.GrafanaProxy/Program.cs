@@ -52,10 +52,10 @@ foreach (var database in databases)
   HashSet<string> uniqueTagValues = new HashSet<string>();
   foreach (InfluxSeries series in resultTables)
   {
-    foreach (List<object> row in series.Table)
+    foreach (var row in series.Table)
     {
       var rowString = row.Select(r => r.ToString()).ToList();
-      if (rowString.Count == 2 && rowString[0] == tagKey && !string.IsNullOrWhiteSpace(rowString[1]))
+      if (rowString != null && rowString.Count == 2 && rowString[0] == tagKey && !string.IsNullOrWhiteSpace(rowString[1]))
       {
         uniqueTagValues.Add(rowString[1]);
       }
@@ -64,75 +64,102 @@ foreach (var database in databases)
 
   AnsiConsole.WriteLine(string.Join("; ", uniqueTagValues));
 
-
   foreach (var tagValue in uniqueTagValues)
   {
-    results.Add(tagValue, new ValueItem { Name = tagValue });
+    if (!results.TryGetValue(tagValue, out var valueItem))
+    {
+      valueItem = new ValueItem(tagValue);
+      valueItem.Databases.Add(database);
+      results.Add(tagValue, valueItem);
+    }
     var measurements = await client.Metadata.ShowMeasurements(database, tagKey, tagValue);
-    //AnsiConsole.WriteLine(string.Join("; ", measurements));
     foreach (var measurement in measurements)
     {
+      valueItem.Measurements.Add(measurement);
       var fieldKeys = await client.Metadata.ShowFieldKeys(database, measurement);
-      var firstValueRow =
-        await client.Values.SelectFirstValue(database, measurement, fieldKeys.First(), tagKey, tagValue);
-      //AnsiConsole.WriteLine($"First: {string.Join("; ", firstValueRow)}");
-      if (firstValueRow.Count == 2 && DateTime.TryParse(firstValueRow[0], out var firstTimestamp))
-      {
-        AnsiConsole.MarkupLineInterpolated($"[green]'{measurement}' ({tagValue}): '{firstTimestamp}'[/]");
-        if (results.TryGetValue(tagValue, out var currentItem))
-        {
-          currentItem.UpdateOldestValueIfOlder(firstTimestamp);
-        }
-        else
-        {
-          results.Add(tagValue, new ValueItem { Name = tagValue, OldestValue = firstTimestamp });
-        }
-      }
+      if (!fieldKeys.Any()) continue;
 
-      var lastValueRow =
-        await client.Values.SelectLastValue(database, measurement, fieldKeys.First(), tagKey, tagValue);
-      //AnsiConsole.WriteLine($"First: {string.Join("; ", firstValueRow)}");
-      if (lastValueRow.Count == 2 && DateTime.TryParse(lastValueRow[0], out var lastTimestamp))
+      foreach (var fieldKey in fieldKeys)
       {
-        AnsiConsole.MarkupLineInterpolated($"[green]'{measurement}' ({tagValue}): '{lastTimestamp}'[/]");
-        if (results.TryGetValue(tagValue, out var currentItem))
+        var retentionPolicy = "autogen";
+        var firstValueRow = await client.Values.SelectFirstValue(database, retentionPolicy, measurement, fieldKey, tagKey, tagValue, valueItem.OldestValue);
+        if (firstValueRow is { Count: 2 } && DateTime.TryParse(firstValueRow[0], out var firstTimestamp))
         {
-          currentItem.UpdateNewestValueIfNewer(lastTimestamp);
+          AnsiConsole.MarkupLineInterpolated($"[green]'{measurement}' ({tagValue}): '{firstTimestamp}'[/]");
+          valueItem.UpdateOldestValueIfOlder(firstTimestamp);
         }
-        else
+
+        var lastValueRow = await client.Values.SelectLastValue(database, retentionPolicy, measurement, fieldKey, tagKey, tagValue, valueItem.NewestValue);
+        if (lastValueRow is { Count: 2 } && DateTime.TryParse(lastValueRow[0], out var lastTimestamp))
         {
-          results.Add(tagValue, new ValueItem { Name = tagValue, NewestValue = lastTimestamp });
+          AnsiConsole.MarkupLineInterpolated($"[green]'{measurement}' ({tagValue}): '{lastTimestamp}'[/]");
+          valueItem.UpdateNewestValueIfNewer(lastTimestamp);
         }
       }
     }
+
+    results[tagValue] = valueItem;
   }
 }
 
 foreach (var value in results.Values)
 {
-  AnsiConsole.MarkupLineInterpolated($"[green]'{value}'[/]");
+  AnsiConsole.MarkupLineInterpolated($"[green]'{value.ToString().EscapeMarkup()}'[/]");
 }
 
 public class ValueItem
 {
-  public string Name { get; set; }
-  public DateTime OldestValue { get; set; }
-  public DateTime NewestValue { get; set; }
+  public string Name { get; }
+  public DateTime OldestValue { get; set; } = DateTime.UtcNow;
+  public DateTime NewestValue { get; set; } = DateTime.MinValue;
+
+  public List<string> Databases { get; } = new ();
+  public List<string> Measurements { get; } = new ();
+
+  public ValueItem(string name) => Name = name;
 
   public void UpdateOldestValueIfOlder(DateTime newValue)
   {
     AnsiConsole.MarkupLine($"?? [red]{newValue} < {OldestValue}[/] ??");
-    if (newValue < OldestValue || NewestValue == DateTime.MinValue) OldestValue = newValue;
+    if (newValue > DateTime.UtcNow.AddDays(1)) return; // new Value is in the future
+    if (newValue < DateTime.UtcNow.AddYears(-10)) return; // This value is definitely too old
+    
+    if (newValue < OldestValue) OldestValue = newValue;
   }
   
   public void UpdateNewestValueIfNewer(DateTime newValue)
   {
     AnsiConsole.MarkupLine($"?? [red]{newValue} > {NewestValue}[/] ??");
-    if (newValue > NewestValue || NewestValue == DateTime.MinValue) NewestValue = newValue;
+    if (newValue > DateTime.UtcNow.AddDays(1)) return; // new Value is in the future
+    if (newValue < DateTime.UtcNow.AddYears(-10)) return; // This value is definitely too old
+    
+    if (newValue > NewestValue) NewestValue = newValue;
   }
 
+  private static string GetUpToFiveValues(List<string> values)
+  {
+    var builder = new StringBuilder();
+    builder.Append('[');
+    if (!values.Any())
+    {
+      builder.Append("<none>");
+    }
+    else if (values.Count > 5)
+    {
+      builder.Append(string.Join(',', values.Take(5)));
+      builder.Append(",...");
+    }
+    else
+    {
+      builder.Append(string.Join(',', values));
+    }
+
+    builder.Append(']');
+    return builder.ToString();
+  }
+  
   public override string ToString()
   {
-    return $"{Name} ({OldestValue} to {NewestValue})";
+    return $"{Name};{OldestValue};{NewestValue};{GetUpToFiveValues(Measurements)};{GetUpToFiveValues(Databases)}";
   }
 }

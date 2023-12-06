@@ -53,7 +53,7 @@ foreach (var database in databases)
     Helpers.PrintTable(measurementSeries.Name, measurementSeries.Columns, measurementSeries.Table);
   }
 
-  var lastValueResults = await client.Values.SelectLastValue(database, measurements.First());
+  var lastValueResults = await client.Values.SelectLastValue(database, "autogen", measurements.First());
   foreach(var lastValue in lastValueResults)
   {
     Helpers.PrintTable(lastValue.Name, lastValue.Columns, lastValue.Table);
